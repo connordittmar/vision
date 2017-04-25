@@ -16,7 +16,7 @@ import time
 
 from interop import AsyncClient
 from interop import Target
-from upload_targets import upload_taret, upload_legacy_targets
+from upload_targets import upload_targets
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +26,7 @@ def targets(args,client):
             raise ValueError('--target_dir is required.')
         upload_legacy_targets(client, args.legacy_filepath, args.target_dir)
     elif args.target_dir:
-        upload_targets(client, args.target_dir, args.team_id,
-                       args.actionable_override)
+        upload_targets(client, args.target_dir)
     else:
         targets = client.get_targets()
         for target in targets.result():
@@ -51,9 +50,6 @@ def main():
     parser.add_argument('--password',help='Password for server login.')
 
     subparsers = parser.add_subparsers(help='Sub-command help.')
-
-    subparser = subparsers.add_parser('missions',help='Get Missions.')
-    subparser.set_defaults(func=missions)
 
     subparser = subparsers.add_parser(
         'targets',

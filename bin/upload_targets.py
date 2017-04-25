@@ -94,43 +94,6 @@ def load_target_file(target_filepath):
     return targets
 
 
-def upload_legacy_targets(client, target_filepath, imagery_dir):
-    """Load targets and upload via interoperability.
-
-    Loads targets from the legacy 2016 tab-delimited format.
-
-    Args:
-        client: The interop client.
-        target_filepath: Filepath to the tab-delimited target file.
-        imagery_dir: Base to form paths to imagery files.
-    """
-    # Load target details.
-    targets = load_target_file(target_filepath)
-
-    # Form full imagery filepaths.
-    targets = [(t, os.path.join(imagery_dir, i)) for t, i in targets]
-    # Validate filepath for each image.
-    for _, image_filepath in targets:
-        if not os.path.exists(image_filepath):
-            raise ValueError('Could not find imagery file: %s' %
-                             image_filepath)
-    # Validate type of each image.
-    for _, image_filepath in targets:
-        image_type = imghdr.what(image_filepath)
-        if image_type not in ['jpeg', 'png']:
-            raise ValueError('Invalid imagery type: %s' % image_type)
-
-    # Upload targets.
-    for target, image_filepath in targets:
-        image_data = None
-        with open(image_filepath, 'rb') as f:
-            image_data = f.read()
-        logger.info('Uploading target %r' % target)
-        target = client.post_target(target)
-        logger.info('Uploading target thumbnail %s' % image_filepath)
-        client.put_target_image(target.id, image_data)
-
-
 def upload_target(client,
                   target_file,
                   image_file,
@@ -150,7 +113,7 @@ def upload_target(client,
     """
     with open(target_file) as f:
         target = Target.deserialize(json.load(f))
-
+        id = target.id
     target.team_id = team_id
     target.actionable_override = actionable_override
     logger.info('Uploading target %s: %r' % (target_file, target))
@@ -158,7 +121,7 @@ def upload_target(client,
     if image_file:
         logger.info('Uploading target thumbnail %s' % image_file)
         with open(image_file) as img:
-            client.post_target_image(target.id, img.read())
+            client.post_target_image(id, img.read())
     else:
         logger.warning('No thumbnail for target %s' % target_file)
 
