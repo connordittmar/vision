@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 def initBlobDetector():
-    #Set up Blob Detector and Parameters
+    #Set up Blob Detector and Parameters (PARAMS NOT TESTED YET)
     params = cv2.SimpleBlobDetector_Params()
     params.minThreshold = 50
     params.maxThreshold = 150
