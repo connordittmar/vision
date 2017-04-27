@@ -1,17 +1,20 @@
 import cv2
 import numpy as np
 
-def initBlobDetector():
+#Can be modified to detect different
+class BlobDetector():
+
+def __init__(self, minT, maxT, area):
     #Set up Blob Detector and Parameters (PARAMS NOT TESTED YET)
     params = cv2.SimpleBlobDetector_Params()
-    params.minThreshold = 50
-    params.maxThreshold = 150
+    params.minThreshold = minT
+    params.maxThreshold = maxT
     params.filterByArea = True
-    params.minArea = 150
-    #params.filterByColor = false
+    params.minArea = area
     detector = cv2.SimpleBlobDetector_create(params)
-    return detector
 
-def detectBlobs(im, detector):
+def detectBlobs(im):
     keypoints = detector.detect(im)
     return keypoints
+
+# blob = BlobDetector(50,250,150)
