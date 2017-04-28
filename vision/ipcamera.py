@@ -5,7 +5,7 @@ import urllib2
 import cv2
 import numpy as np
 
-class ipCamera(object):
+class IpCamera(object):
 
     def __init__(self, url, user=None, password=None):
         self.url = url
