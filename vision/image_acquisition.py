@@ -12,23 +12,25 @@ class axisCam(object):
     def __init__(self, ip='169.254.140.171'):
         try:
             #self.cam = urllib.urlopen('http://%s/axis-cgi/jpg/image.cgi'%ip)
-            self.cam = urllib.urlopen('http://169.254.140.170/axis-cgi/jpg/image.cgi')
+            self.cam = urllib.urlopen('http://169.254.171.248/axis-cgi/jpg/image.cgi')
+            self.bytes = ''
         except:
             print 'Axis IP Address Error'
             exit(0)
 
     def snapshot(self, save = True):
-        bytes = ''
-        bytes += self.cam.read()
-        a = bytes.find('\xff\xd8')
-        b = bytes.find('\xff\xd9')
+        self.bytes = ''  #Image Buffer
+        self.bytes += self.cam.read()  #Update buffer
+        #Locate full image in buffer
+        a = self.bytes.find('\xff\xd8')
+        b = self.bytes.find('\xff\xd9')
 
+        #Format image as numpy array
         if a!=-1 and b!=-1:
-            jpg = bytes[a:b+2]
+            jpg = self.bytes[a:b+2]
             #bytes= bytes[b+2:]
             img = cv2.imdecode(np.fromstring(jpg, dtype=np.uint8),cv2.IMREAD_COLOR)
         return img
-
 
 class gigeCam(object):
 
@@ -45,10 +47,10 @@ class gigeCam(object):
         self.cam.connect(uID)
 
         #Set Up Camera Parameters
-        imgSetInfo = self.cam.getGigEImageSettingsInfo()
-        imgSet = PyCapture2.GigEImageSettings()
-        imgSet.offsetX = (2048-self.width)/2
-        imgSet.offsetY = (2448-self.height)/2
+        #imgSetInfo = self.cam.getGigEImageSettingsInfo()
+        imgSet = PyCapture2.GigEImageSettings() #Get Camera Settings
+        imgSet.offsetX = (2048-self.width)/2    #Center Image
+        imgSet.offsetY = (2448-self.height)/2   #Center Image
         imgSet.height = self.height
         imgSet.width = self.width
         imgSet.pixelFormat = PyCapture2.PIXEL_FORMAT.RGB
@@ -57,43 +59,22 @@ class gigeCam(object):
 
     def snapshot(self):
         self.cam.startCapture()
-        img = self.cam.retrieveBuffer()
-        data = np.array(img.getData(),dtype=np.uint8)
-        rgb = np.array(np.split(data,len(data)/3))
-        rgb = rgb.reshape([self.height,self.width,3])
-        bgr = rgb[...,[2,1,0]]
+        img = self.cam.retrieveBuffer() #grab Image from buffer
+        data = np.array(img.getData(),dtype=np.uint8)   #Format image as numpy array
+        rgb = np.array(np.split(data,len(data)/3)) #Split numpy array into RGB channels
+        rgb = rgb.reshape([self.height,self.width,3]) #Shape RGB channels into proper image array
+        bgr = rgb[...,[2,1,0]]  #Convert rgb to bgr
         self.cam.stopCapture()
         return bgr
 
+    def getBuffer(self):
+        return self.cam.retrieveBuffer()
+
+    def startStream(self):
+        self.cam.startCapture()
+
+    def stopStream(self):
+        self.cam.stopCapture()
+
     def disconnect(self):
         self.cam.disconnect()
-'''
-class Images(object):
-
-    def __init__(self, img, timestamp=None):
-        self.timestamp = timestamp
-        self.img = img
-        self.getTelemetryData(ip, port)
-        self.calcualteExtrinsicMatrix()
-
-
-    def calculateExtrinsicMatrix(self, lat, lon, alt, yaw, pitch, roll):
-        self.Rt = np.eye(4)
-        self._Rt[:3, :3] = angle2dcm(yaw, pitch, roll, input_units='rad').T
-        self.lat =  lat
-        self.lon = lon
-        self.alt = alt
-        self.yaw = yaw
-        self.pitch = pitch
-        self.roll = roll
-
-
-    #Figure out payload format to decode mavlink messages****
-    def getTelemetryData(self, ip, port):
-        UDP_IP = ip
-        UDP_PORT = port
-        sock = socket.socket(socket.SOCK_DGRAM,sock)
-        sock.bind((UDP_IP, UDP_PORT))
-        data, ddr = sock.recvfrom(1024)
-        self.msg = mav.decode(data)
-'''

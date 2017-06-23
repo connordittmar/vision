@@ -1,10 +1,11 @@
-import cv2
+import cv2          #OpenCV 2.7
 import numpy as np
 import scipy
 import os
 
 #Can be modified to detect different
 class BlobDetector(object):
+    #Create Custom Blob Detector in Future
 
     def __init__(self, minT, maxT, area):
         #Set up Blob Detector and Parameters (PARAMS NOT TESTED YET)
@@ -20,7 +21,7 @@ class BlobDetector(object):
         if len(img.shape) == 3:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        keypoints = self.detector.detect(img)
+        keypoints = self.detector.detect(img) #Find keypoits of blobs in image
         return keypoints
 
     def drawKeypoint(self,img,kp):
@@ -30,8 +31,7 @@ class BlobDetector(object):
 
     def isolateBlob(self,img,kp):
         #Return Cropped Image of Largest blob
-        #If no blobs, returns input image
-        if len(kp) != 0:
+        if len(kp) != 0: #Pick largest blob (Just for testing)
             maxkp = 0
             maxsize = 0
             for i in kp:
@@ -39,11 +39,13 @@ class BlobDetector(object):
                     maxkp = i
                     maxsize = i.size
 
-            shift = int(maxkp.size/1.5)
-            startx = int(maxkp.pt[0]-shift)
+            #Crom image based on blob size
+            shift = int(maxkp.size/1.5) #Set crop size to be slightly larger than blob
+            startx = int(maxkp.pt[0]-shift) #Set starting point of crop
             starty = int(maxkp.pt[1]-shift)
             return img[starty:starty+shift*2,startx:startx+shift*2]
         else:
+            #If no blobs, return imput image
             print 'No Blob'
             return img
 
@@ -52,32 +54,29 @@ class BlobDetector(object):
 class ImageClassifier(object):
 
     def __init__(self, img, k=3):
-        #declare variables
+
         self.img = img
         self.k = k
+
         self.sharpenImage()
         self.reduceColorspace()
         self.findColors()
         self.isolateShapes()
 
-    def saveImage(self):
-        i = 1
-        while os.path.exists(r"C:\Users\SUAS Team\Documents\vision\vision\images\img%s.png" %i):
-            i += 1
-        cv2.imwrite(r'C:\Users\SUAS Team\Documents\vision\vision\images\img%s.png' %i, self.img)
-
 
     def reduceColorspace(self):
-        #Reduces the Image to 3 colors
+        #Reduces the Image to 3 colors using kmeans clustering
         z = self.sharp.reshape((-1,3))
         z = np.float32(z)
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        ret,label,center=cv2.kmeans(z,self.k,None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0) #Criteria for kmeans clustering
+        ret,label,center=cv2.kmeans(z,self.k,None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)    #Apply kmeans clustering
+        #Create image from clusters
         center = np.uint8(center)
         res = center[label.flatten()]
         self.reduced = res.reshape((self.img.shape))
 
     def sharpenImage(self):
+        #Sharpen the image for more defined kmeans
         kernel = np.zeros((9,9), np.float32)
         kernel[4,4] = 2.0
         boxFilter = np.ones((9,9), np.float32)/70.0  #81.0
@@ -86,10 +85,12 @@ class ImageClassifier(object):
 
 
     def hsvToName(self, triplet):
+        #Get hsv value from triplet for easier referencing
         h = triplet[0]
         s = triplet[1]
         v = triplet[2]
 
+        #Use visually picked hsv values for colors for 10 competition colors
         if v<50:
             return 'black'
         elif v>210 and s<26:
@@ -115,38 +116,44 @@ class ImageClassifier(object):
 
 
     def findColors(self):
+        #Find all colors in an image as RGB, BGR, HSV, and name
         im = self.reduced[...,[2,1,0]] #Turn reduced to rgb
-        self.hsv = cv2.cvtColor(self.reduced,cv2.COLOR_BGR2HSV)
-        #List of colors in image
+        self.hsv = cv2.cvtColor(self.reduced,cv2.COLOR_BGR2HSV) #Create hsv image
+        #List of colors in image in different color spaces
         self.rgbcolors=[]
         self.bgrcolors=[]
         self.hsvcolors=[]
+        #Loop through pixels in image to find all of colors in reduced image
         for i in xrange(0,im.shape[0]):
             for j in xrange(0,im.shape[1]):
-                l = list(im[i,j])
+                l = list(im[i,j])   #Convert numpy array to list
                 try:
-                    self.rgbcolors.index(l)
+                    self.rgbcolors.index(l) #Check if color has been counted
                 except:
+                    #If color hasnt been recorded, add it to the color space lists
                     self.rgbcolors.append(l)
                     self.bgrcolors.append(l[::-1])
                     self.hsvcolors.append(list(self.hsv[i,j]))
 
+                #Break loops once all color shave been found to avoid going through whole image
                 if len(self.rgbcolors) == self.k:
                     break
             else:
                 continue
             break
 
-        #Convert rgb to name
+        #Find list of color names
         self.colors = []
         for i in range(0,len(self.hsvcolors)):
-            colorName = self.hsvToName(self.hsvcolors[i])
+            colorName = self.hsvToName(self.hsvcolors[i]) #Plug in HSV triplet to get name
             self.colors.append(colorName)
-        self.shape_color =  self.colors[1]
-        self.letter_color = self.colors[2]
+        self.shape_color =  self.colors[1]  #Second color should be shape based on loop
+        self.letter_color = self.colors[2]  #Third color in list should be letter based on loop
 
     def isolateShapes(self):
-        lower = np.array(self.bgrcolors[0])
+        #Create Binaies of the shape and letter from a 3 color reduction
+        #Shape binary is the inverse of the background binary to avoid having the latter in the middle
+        lower = np.array(self.bgrcolors[0]) #Set values for binarization
         upper = np.array(self.bgrcolors[0])
         self.shape_bin = np.invert(cv2.inRange(self.reduced, lower, upper))
         lower = np.array(self.bgrcolors[2])
